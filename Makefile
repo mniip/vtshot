@@ -1,5 +1,6 @@
 CC= gcc
 CFLAGS= -O0 -ggdb
+LDFALGS= -lrt
 
 OUTFILE= vtshot
 OBJECTS= log.o main.o ppm.o reader_fb.o
