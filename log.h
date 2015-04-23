@@ -11,4 +11,6 @@ extern int verbosity;
 
 extern void panic();
 
+#define die(...) do { yell(__VA_ARGS__); panic(); } while(0)
+
 #endif

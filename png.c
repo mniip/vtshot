@@ -15,10 +15,7 @@ static void write_all(int file_desc, void *data, size_t size)
 	{
 		int ret;
 		if(0 > (ret = write(file_desc, data, size)))
-		{
-			yell("write_ppm: Error while writing PNG: %s\n", strerror(errno));
-			panic();
-		}
+			die("write_ppm: Error while writing PNG: %s\n", strerror(errno));
 		size -= ret;
 	}
 }
@@ -34,23 +31,14 @@ void write_png(char const *filename, int width, int height, buffer buf)
 	whisper("write_png: Writing %dx%d PNG to '%s'\n", width, height, filename);
 	int file_desc = open(filename, O_WRONLY | O_CREAT, 0644);
 	if(file_desc < 0)
-	{
-		yell("write_png: Could not open '%s' for writing: %s\n", filename, strerror(errno));
-		panic();
-	}
+		die("write_png: Could not open '%s' for writing: %s\n", filename, strerror(errno));
 	whisper("write_png: Opened the file\n");
 	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 	if(!png_ptr)
-	{
-		yell("write_png: png_create_write_struct failed\n");
-		panic();
-	}
+		die("write_png: png_create_write_struct failed\n");
 	png_infop info_ptr = png_create_info_struct(png_ptr);
 	if(!info_ptr)
-	{
-		yell("write_png: png_create_info_struct failed\n");
-		panic();
-	}
+		die("write_png: png_create_info_struct failed\n");
 	png_set_IHDR(png_ptr, info_ptr, width, height, 8, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 	png_set_write_fn(png_ptr, &file_desc, &png_write_cb, NULL);
 	void **row_pointers = calloc(height, sizeof(void *));

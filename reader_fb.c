@@ -20,34 +20,22 @@ descriptor fb_init(char const *device)
 	say("fb_init: Opening framebuffer device '%s'\n", device);
 	int file_desc = open(device, O_RDONLY);
 	if(file_desc < 0)
-	{
-		yell("fb_init: Could not open framebuffer device '%s' for reading: %s\n", device, strerror(errno));
-		panic();
-	}
+		die("fb_init: Could not open framebuffer device '%s' for reading: %s\n", device, strerror(errno));
 	say("fb_init: Opened the framebuffer device\n");
 	struct fb_fix_screeninfo fixed_info;
 	if(0 > ioctl(file_desc, FBIOGET_FSCREENINFO, &fixed_info))
-	{
-		yell("fb_init: Could not get fixed screen info\n");
-		panic();
-	}
+		die("fb_init: Could not get fixed screen info: %s\n", strerror(errno));
 	say("fb_init: Got fixed screen info: framebuffer size = 0x%x, line length = 0x%x\n", fixed_info.smem_len, fixed_info.line_length);
 	void *map;
 	if(do_mmap)
 	{
 		if((void *)-1 == (map = mmap(NULL, fixed_info.smem_len, PROT_READ, MAP_PRIVATE, file_desc, 0)))
-		{
-			yell("fb_init: Could not mmap the framebuffer device\n");
-			panic();
-		}
+			die("fb_init: Could not mmap the framebuffer device: %s\n", strerror(errno));
 		say("fb_init: Mmapped the framebuffer device\n");
 	}
 	struct fb_var_screeninfo screen_info;
 	if(0 > ioctl(file_desc, FBIOGET_VSCREENINFO, &screen_info))
-	{
-		yell("fb_init: Could not get screen info\n");
-		panic();
-	}
+		die("fb_init: Could not get screen info: %s\n", strerror(errno));
 	say("fb_init: Got screen info: width = %d, height = %d\n", screen_info.xres, screen_info.yres);
 
 	fb_userdata *userdata = calloc(1, sizeof(fb_userdata));
@@ -78,10 +66,9 @@ static void read_all(int file_desc, void *buf, size_t size)
 	{
 		int ret;
 		if(0 > (ret = read(file_desc, buf, size)))
-		{
-			yell("fb_capture: Error while reading from framebuffer device at offset 0x%lx: %s\n", lseek(file_desc, 0, SEEK_CUR), strerror(errno));
-			panic();
-		}
+			die("fb_capture: Error while reading from framebuffer device at offset 0x%lx: %s\n", lseek(file_desc, 0, SEEK_CUR), strerror(errno));
+		if(!ret)
+			say("fb_capture: Read ended early at offset 0x%lx\n", lseek(file_desc, 0, SEEK_CUR));
 		size -= ret;
 		buf += ret;
 	}
@@ -92,16 +79,10 @@ void fb_capture(descriptor const *desc, buffer buf)
 	int file_desc = ((fb_userdata *)desc->userdata)->file_desc;
 	struct fb_fix_screeninfo fixed_info;
 	if(0 > ioctl(file_desc, FBIOGET_FSCREENINFO, &fixed_info))
-	{
-		yell("fb_capture: Could not get fixed screen info\n");
-		panic();
-	}
+		die("fb_capture: Could not get fixed screen info: %s\n", strerror(errno));
 	struct fb_var_screeninfo screen_info;
 	if(0 > ioctl(file_desc, FBIOGET_VSCREENINFO, &screen_info))
-	{
-		yell("fb_capture: Could not get screen info\n");
-		panic();
-	}
+		die("fb_capture: Could not get screen info: %s\n", strerror(errno));
 	int width = desc->width;
 	int height = desc->height;
 	if(width != screen_info.xres || height != screen_info.yres)
@@ -158,8 +139,7 @@ void fb_capture(descriptor const *desc, buffer buf)
 		case 2:
 		case 4:
 		default:
-		yell("fb_capture: Capturing for %d bits per pixel not implemented yet\n", screen_info.bits_per_pixel);
-		panic();
+		die("fb_capture: Capturing for %d bits per pixel not implemented yet\n", screen_info.bits_per_pixel);
 		break;
 		case 8:
 		LOOP
