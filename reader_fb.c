@@ -4,7 +4,6 @@
 #include <string.h>
 #include <errno.h>
 
-#include <time.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -13,6 +12,8 @@
 #include "reader_generic.h"
 #include "reader_fb.h"
 #include "log.h"
+
+int do_mmap = 0;
 
 descriptor fb_init(char const *device)
 {
@@ -31,13 +32,16 @@ descriptor fb_init(char const *device)
 		panic();
 	}
 	say("fb_init: Got fixed screen info: framebuffer size = 0x%x, line length = 0x%x\n", fixed_info.smem_len, fixed_info.line_length);
-	void *map = mmap(NULL, fixed_info.smem_len, PROT_READ, MAP_PRIVATE, file_desc, 0);
-	if(map == (void *)-1)
+	void *map;
+	if(do_mmap)
 	{
-		yell("fb_init: Could not mmap the framebuffer device\n");
-		panic();
+		if((void *)-1 == (map = mmap(NULL, fixed_info.smem_len, PROT_READ, MAP_PRIVATE, file_desc, 0)))
+		{
+			yell("fb_init: Could not mmap the framebuffer device\n");
+			panic();
+		}
+		say("fb_init: Mmapped the framebuffer device\n");
 	}
-	say("fb_init: Mmapped the framebuffer device\n");
 	struct fb_var_screeninfo screen_info;
 	if(0 > ioctl(file_desc, FBIOGET_VSCREENINFO, &screen_info))
 	{
@@ -86,7 +90,6 @@ void read_all(int file_desc, void *buf, size_t size)
 void fb_capture(descriptor const *desc, buffer buf)
 {
 	int file_desc = ((fb_userdata *)desc->userdata)->file_desc;
-	uint8_t *map = ((fb_userdata *)desc->userdata)->map;
 	struct fb_fix_screeninfo fixed_info;
 	if(0 > ioctl(file_desc, FBIOGET_FSCREENINFO, &fixed_info))
 	{
@@ -103,13 +106,23 @@ void fb_capture(descriptor const *desc, buffer buf)
 	int height = desc->height;
 	if(width != screen_info.xres || height != screen_info.yres)
 		yell("fb_capture: Device resolution changed\n");
-	uint8_t *line = calloc(1, fixed_info.line_length);
+	uint8_t *map;
+	uint8_t *line;
+	if(do_mmap)
+		map = ((fb_userdata *)desc->userdata)->map;
+	else
+		line = calloc(1, fixed_info.line_length);
 	int x, y;
 #define LOOP(X) \
 	for(y = screen_info.yoffset; y < screen_info.yoffset + height; y++)\
 	{\
-		lseek(file_desc, fixed_info.line_length * y, SEEK_SET);\
-		read_all(file_desc, line, fixed_info.line_length);\
+		if(do_mmap)\
+			line = map + fixed_info.line_length * y;\
+		else\
+		{\
+			lseek(file_desc, fixed_info.line_length * y, SEEK_SET);\
+			read_all(file_desc, line, fixed_info.line_length);\
+		}\
 		for(x = screen_info.xoffset; x < screen_info.xoffset + width; x++)\
 		{\
 			X\
@@ -138,7 +151,6 @@ void fb_capture(descriptor const *desc, buffer buf)
 			*(buf++) = (pixel >> screen_info.blue.offset & blue_mask) * 255 / blue_mask;\
 		}
 
-//		uint8_t *line = map + fixed_info.line_length * y;
 	whisper("fb_capture: Translating %d bits per pixel %dx%d pixmap\n", screen_info.bits_per_pixel, width, height);
 	switch(screen_info.bits_per_pixel)
 	{

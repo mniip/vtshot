@@ -3,6 +3,8 @@
 
 #include "reader_generic.h"
 
+extern int do_mmap;
+
 typedef struct
 {
 	int file_desc;
