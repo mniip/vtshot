@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 	if(optind < argc || help)
 	{
 		fprintf(stderr, "Usage:\n");
-		fprintf(stderr, "    vtshot (-o <file> | -b) [-d <device>] [-qvDh]\n");
+		fprintf(stderr, "    vtshot (-o <file> | -b) [-d <device>] [-bDhmPpqv]\n");
 		fprintf(stderr, "\n");
 		fprintf(stderr, "  -o <file>   --output <file>    Set the output file.\n");
 		fprintf(stderr, "  -d <device> --device <device>  Set the input device (default: /dev/fb0).\n");
