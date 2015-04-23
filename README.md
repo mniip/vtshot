@@ -2,6 +2,8 @@
 
 Linux console recording tool. Input can be grabbed from a framebuffer or a VCSA. Output can be in either PNG or PPM format.
 
+VtShot does not require root privileges. Usually you only need to be in the `video` group to access the framebuffer, and in the `tty` group to access the VCSA. For more info see `stat` of the respective device nodes in `/dev/`.
+
 #Usage
 ```
     vtshot (-o <file> | -b) [-d <device>] [-bfDhmPpqVv]
