@@ -49,10 +49,10 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "\n");
 		fprintf(stderr, "  -o <file>   --output <file>    Set the output file.\n");
 		fprintf(stderr, "  -d <device> --device <device>  Set the input device (default: /dev/fb0).\n");
-		fprintf(stderr, "  -b          --benchmark        Do nog capture the image, provide timing information instead\n");
-		fprintf(stderr, "  -m          --mmap             Use memory mapping (slower on some machines, faster on others)\n");
-		fprintf(stderr, "  -p          --png              Set the output format to PNG (default)\n");
-		fprintf(stderr, "  -P          --ppm              Set the output format to PPM\n");
+		fprintf(stderr, "  -b          --benchmark        Do not capture the image, provide timing information instead.\n");
+		fprintf(stderr, "  -m          --mmap             Use memory mapping (slower on some machines, faster on others).\n");
+		fprintf(stderr, "  -p          --png              Set the output format to PNG (default).\n");
+		fprintf(stderr, "  -P          --ppm              Set the output format to PPM.\n");
 		fprintf(stderr, "  -q          --quiet            Suppress error messages.\n");
 		fprintf(stderr, "  -v          --verbose          Show more informational messages.\n");
 		fprintf(stderr, "  -D          --debug            Show debug information.\n");
