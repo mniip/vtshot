@@ -10,7 +10,7 @@
 #include "ppm.h"
 #include "log.h"
 
-void write_all(int file_desc, void *data, size_t size)
+static void write_all(int file_desc, void *data, size_t size)
 {
 	size_t orig_size = size;
 	while(size > 0)
@@ -35,7 +35,7 @@ void write_ppm(char const *filename, int width, int height, buffer buf)
 		panic();
 	}
 	whisper("write_ppm: Opened the file\n");
-	char *header = calloc(1, 20); // 11 bytes of text, plus 2 numbers 9 each plus terminating null
+	char *header = calloc(20, 1); // 11 bytes of text, plus 2 numbers 9 each plus terminating null
 	sprintf(header, "P6\n#\n%d %d\n255\n", width, height);
 	write_all(file_desc, header, strlen(header));
 	whisper("write_ppm: Wrote the header\n");

@@ -50,7 +50,7 @@ descriptor fb_init(char const *device)
 	}
 	say("fb_init: Got screen info: width = %d, height = %d\n", screen_info.xres, screen_info.yres);
 
-	fb_userdata *userdata = calloc(sizeof(fb_userdata), 1);
+	fb_userdata *userdata = calloc(1, sizeof(fb_userdata));
 	userdata->file_desc = file_desc;
 	userdata->map = map;
 	userdata->map_length = fixed_info.smem_len;
@@ -72,7 +72,7 @@ void fb_cleanup(descriptor const *desc)
 	say("fb_cleanup: Done cleaning up\n");
 }
 
-void read_all(int file_desc, void *buf, size_t size)
+static void read_all(int file_desc, void *buf, size_t size)
 {
 	while(size)
 	{
@@ -111,7 +111,7 @@ void fb_capture(descriptor const *desc, buffer buf)
 	if(do_mmap)
 		map = ((fb_userdata *)desc->userdata)->map;
 	else
-		line = calloc(1, fixed_info.line_length);
+		line = calloc(fixed_info.line_length, 1);
 	int x, y;
 #define LOOP(X) \
 	for(y = screen_info.yoffset; y < screen_info.yoffset + height; y++)\
