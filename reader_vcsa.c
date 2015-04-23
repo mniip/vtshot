@@ -127,14 +127,14 @@ void vcsa_capture(descriptor const *desc, buffer buf)
 	uint16_t lower = mask - 1;
 	size_t row_distance = (op.width + 7) / 8;
 	size_t char_distance = row_distance * 32;
-	uint16_t *line = calloc(header.columns, sizeof(uint16_t));
+	uint16_t *data = calloc(header.columns * header.lines, sizeof(uint16_t));
+	read_all(vcsa_desc, data, header.columns * header.lines * sizeof(uint16_t));
 	int x, y;
 	for(y = 0; y < height; y++)
 	{
 		int chary = y / op.height;
 		int dy = y % op.height;
-		lseek(vcsa_desc, sizeof(struct vcsa_header) + header.columns * chary * sizeof(uint16_t), SEEK_SET);
-		read_all(vcsa_desc, line, header.columns * sizeof(uint16_t));
+		uint16_t *line = data + header.columns * chary;
 		for(x = 0; x < width; x++)
 		{
 			int charx = x / op.width;
@@ -152,5 +152,5 @@ void vcsa_capture(descriptor const *desc, buffer buf)
 			*(buf++) = colors_blue[color];
 		}
 	}
-	free(line);
+	free(data);
 }
