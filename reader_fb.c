@@ -88,22 +88,24 @@ void fb_capture(descriptor const *desc, buffer buf)
 	if(width != screen_info.xres || height != screen_info.yres)
 		yell("fb_capture: Device resolution changed\n");
 	uint8_t *map;
-	uint8_t *line;
+	uint8_t *data;
 	if(do_mmap)
 		map = ((fb_userdata *)desc->userdata)->map;
 	else
-		line = calloc(fixed_info.line_length, 1);
+	{
+		data = calloc(fixed_info.line_length * height, 1);
+		lseek(file_desc, fixed_info.line_length * screen_info.yoffset, SEEK_SET);
+		read_all(file_desc, data, fixed_info.line_length * height);
+	}
 	int x, y;
 #define LOOP(X) \
-	for(y = screen_info.yoffset; y < screen_info.yoffset + height; y++)\
+	for(y = 0; y < height; y++)\
 	{\
+		uint8_t *line;\
 		if(do_mmap)\
-			line = map + fixed_info.line_length * y;\
+			line = map + fixed_info.line_length * (y + screen_info.yoffset);\
 		else\
-		{\
-			lseek(file_desc, fixed_info.line_length * y, SEEK_SET);\
-			read_all(file_desc, line, fixed_info.line_length);\
-		}\
+			line = data + fixed_info.line_length * y;\
 		for(x = screen_info.xoffset; x < screen_info.xoffset + width; x++)\
 		{\
 			X\
@@ -170,5 +172,7 @@ void fb_capture(descriptor const *desc, buffer buf)
 		)
 		break;
 	}
+	if(!do_mmap)
+		free(data);
 	whisper("fb_capture: Done translating\n");
 }
