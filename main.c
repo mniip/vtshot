@@ -8,8 +8,8 @@
 #include "png.h"
 #include "ppm.h"
 #include "reader_generic.h"
-#include "reader_fb.h"
-#include "reader_vcsa.h"
+#include "fb.h"
+#include "vcsa.h"
 #include "rle.h"
 
 struct option options[] = {
@@ -39,11 +39,13 @@ static void handler(int r)
 int main(int argc, char *argv[])
 {
 	char const *device = NULL, *output = NULL;
-	int help = 0, benchmark = 0, outtype = 0, sequence = 0;
+	int help = 0, benchmark = 0, outtype = 0, seq = 0;
 	char const *default_device = "/dev/fb0";
 	init_proc init = &fb_init;
 	cleanup_proc cleanup = &fb_cleanup;
 	capture_proc capture = &fb_capture;
+	write_proc write = &write_png;
+	write_proc_sequence write_sequence = &write_png_sequence;
 
 	int arg, dummy;
 	while(-1 != (arg = getopt_long(argc, argv, "bfhDd:m:PpqsVv", options, &dummy)))
@@ -55,10 +57,10 @@ int main(int argc, char *argv[])
 			case 'D': verbosity = 3; break;
 			case 'd': device = optarg; break;
 			case 'm': do_mmap = 1; break;
-			case 'P': outtype = 1; break;
-			case 'p': outtype = 0; break;
+			case 'P': write = &write_ppm; write_sequence = &write_ppm_sequence; break;
+			case 'p': write = &write_png; write_sequence = &write_png_sequence; break;
 			case 'q': verbosity = 0; break;
-			case 's': sequence = 1; break;
+			case 's': seq = 1; break;
 			case 'V': default_device = "/dev/tty0"; init = &vcsa_init; cleanup = &vcsa_cleanup; capture = &vcsa_capture; break;
 			case 'v': verbosity = 2; break;
 		}
@@ -74,7 +76,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "  -m | --mmap             Use memory mapping (slower on some machines, faster on others).\n");
 		fprintf(stderr, "  -p | --png              Set the output format to PNG (default).\n");
 		fprintf(stderr, "  -P | --ppm              Set the output format to PPM.\n");
-		fprintf(stderr, "  -s | --seqience         Record a sequence of images.\n");
+		fprintf(stderr, "  -s | --sequence         Record a sequence of images.\n");
 		fprintf(stderr, "  -f | --fb               Capture input from a framebuffer device.\n");
 		fprintf(stderr, "  -V | --vcsa             Capture input from a VCSA device.\n");
 		fprintf(stderr, "  -q | --quiet            Suppress error messages.\n");
@@ -107,18 +109,18 @@ int main(int argc, char *argv[])
 		double total = (double)(end.tv_sec - start.tv_sec) + (double)((end.tv_nsec - start.tv_nsec) % 1000000000) / 1.0e9;
 		yell("%d screenshots took %.3lf seconds (average %.3lf seconds, %.3lf FPS).\n", takes, total, total / takes, takes / total);
 	}
-	else if(sequence)
+	else if(seq)
 	{
-		void **head = calloc(2, sizeof(void *));
-		void **tail = head;
+		sequence *head = calloc(1, sizeof(sequence));
+		sequence *tail = head;
 		signal(SIGINT, &handler);
 		while(!terminated)
 		{
 			struct timespec start, end;
 			clock_gettime(CLOCK_MONOTONIC, &start);
 			capture(&desc, buf);
-			tail[1] = rle_allocate(desc.width * desc.height, buf);
-			tail = tail[0] = calloc(2, sizeof(void *));
+			tail->rle = rle_allocate(desc.width * desc.height, buf);
+			tail = tail->next = calloc(1, sizeof(sequence));
 			clock_gettime(CLOCK_MONOTONIC, &end);
 			uint64_t spent = (end.tv_nsec - start.tv_nsec) % 1000000000 + 1000000000 * (end.tv_sec - start.tv_sec);
 			int64_t remaining = 1000000000 / 24 - spent;
@@ -130,37 +132,16 @@ int main(int argc, char *argv[])
 				nanosleep(&sleep, &sleep);
 			}
 			else
-				yell("Underrun.\n");
+				say("Underrun.\n");
 		}
 		cleanup(&desc);
 		say("Starting encoding.\n");
-		int frame = 0;
-		char filename[strlen(output) + 8];
-		while(head[0])
-		{
-			sprintf(filename, "%s.%06d", output, frame);
-			rle_free((rle)head[1], desc.width * desc.height, buf);
-			switch(outtype)
-			{
-				case 0: write_png(filename, desc.width, desc.height, buf); break;
-				case 1: write_ppm(filename, desc.width, desc.height, buf); break;
-			}
-			frame++;
-			void **next = head[0];
-			free(head);
-			head = next;
-		}
-		free(head);
-		say("Encoded %d frames.\n", frame);
+		write_sequence(output, desc.width, desc.height, head);
 	}
 	else
 	{
 		capture(&desc, buf);
-		switch(outtype)
-		{
-			case 0: write_png(output, desc.width, desc.height, buf); break;
-			case 1: write_ppm(output, desc.width, desc.height, buf); break;
-		}
+		write(output, desc.width, desc.height, buf);
 		cleanup(&desc);
 	}
 	free(buf);

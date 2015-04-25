@@ -10,7 +10,7 @@
 #include <linux/fb.h>
 
 #include "reader_generic.h"
-#include "reader_fb.h"
+#include "fb.h"
 #include "log.h"
 
 int do_mmap = 0;

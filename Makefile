@@ -3,25 +3,26 @@ CFLAGS= -O3
 LDFLAGS= -lrt -lpng
 
 OUTFILE= vtshot
-OBJECTS= log.o main.o png.o ppm.o reader_fb.o reader_vcsa.o rle.o
+OBJECTS= log.o main.o png.o ppm.o fb.o vcsa.o rle.o writer_generic.o
 
-all: main
+all: vtshot
 
-%.o: %.c %.T
-	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ -c $<
+%.o: %.c
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ -c $<
 
-main: $(OBJECTS)
+$(OUTFILE): $(OBJECTS)
 	$(CC) $(CFLAGS) -o $(OUTFILE) $+ $(LDFLAGS)
 
 clean:
 	rm -f $(OBJECTS) $(OUTFILE)
 
-log.T: log.h
-main.T: log.h png.h ppm.h reader_fb.h reader_generic.h reader_vcsa.h rle.h
-png.T: log.h png.h reader_generic.h
-ppm.T: log.h ppm.h reader_generic.h
-reader_fb.T: log.h reader_fb.h reader_generic.h
-reader_vcsa.T: log.h reader_generic.h reader_vcsa.h
-rle.T: log.h rle.h
+log.o: log.h
+main.o: fb.h log.h png.h ppm.h reader_generic.h rle.h vcsa.h writer_generic.h
+png.o: log.h png.h reader_generic.h writer_generic.h
+ppm.o: log.h ppm.h reader_generic.h writer_generic.h
+fb.o: fb.h log.h reader_generic.h
+vcsa.o: log.h reader_generic.h vcsa.h
+rle.o: log.h rle.h
+writer_generic.o: log.h rle.h reader_generic.h writer_generic.h
 
-.PHONY: all log.T main.T png.T ppm.T reader_fb.T reader_vcsa.T rle.T
+.PHONY: all clean

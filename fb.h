@@ -1,5 +1,5 @@
-#ifndef READER_FB_H
-#define READER_FB_H
+#ifndef FB_H
+#define FB_H
 
 #include "reader_generic.h"
 

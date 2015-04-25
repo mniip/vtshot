@@ -13,7 +13,7 @@
 #include <fcntl.h>
 
 #include "reader_generic.h"
-#include "reader_vcsa.h"
+#include "vcsa.h"
 #include "log.h"
 
 static void read_all(int file_desc, void *buf, size_t size)

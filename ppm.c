@@ -38,3 +38,8 @@ void write_ppm(char const *filename, int width, int height, buffer buf)
 	close(file_desc);
 	whisper("write_ppm: Done writing\n");
 }
+
+extern void write_ppm_sequence(char const *basename, int width, int height, sequence *head)
+{
+	write_file_sequence(basename, width, height, head, &write_ppm);
+}

@@ -53,3 +53,8 @@ void write_png(char const *filename, int width, int height, buffer buf)
 	close(file_desc);
 	whisper("write_png: Done writing\n");
 }
+
+extern void write_png_sequence(char const *basename, int width, int height, sequence *head)
+{
+	write_file_sequence(basename, width, height, head, &write_png);
+}

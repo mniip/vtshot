@@ -1,5 +1,5 @@
-#ifndef READER_VCSA_H
-#define READER_VCSA_H
+#ifndef VCSA_H
+#define VCSA_H
 
 #include <stdint.h>
 
