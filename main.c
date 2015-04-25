@@ -1,13 +1,16 @@
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
 #include <getopt.h>
+#include <signal.h>
 
+#include "log.h"
 #include "png.h"
 #include "ppm.h"
 #include "reader_generic.h"
 #include "reader_fb.h"
 #include "reader_vcsa.h"
-#include "log.h"
+#include "rle.h"
 
 struct option options[] = {
 	{"benchmark", no_argument, 0, 'b'},
@@ -16,26 +19,34 @@ struct option options[] = {
 	{"debug", no_argument, 0, 'D'},
 	{"device", required_argument, 0, 'd'},
 	{"mmap", no_argument, 0, 'm'},
-	{"output", required_argument, 0, 'o'},
 	{"ppm", no_argument, 0, 'P'},
 	{"png", no_argument, 0, 'p'},
 	{"quiet", no_argument, 0, 'q'},
+	{"sequence", no_argument, 0, 's'},
 	{"vcsa", no_argument, 0, 'V'},
 	{"verbose", no_argument, 0, 'v'},
 	{NULL, 0, 0, 0}
 };
 
+static int terminated = 0;
+
+static void handler(int r)
+{
+	signal(SIGINT, SIG_DFL);
+	terminated = 1;
+}
+
 int main(int argc, char *argv[])
 {
 	char const *device = NULL, *output = NULL;
-	int help = 0, benchmark = 0, outtype = 0;
+	int help = 0, benchmark = 0, outtype = 0, sequence = 0;
 	char const *default_device = "/dev/fb0";
 	init_proc init = &fb_init;
 	cleanup_proc cleanup = &fb_cleanup;
 	capture_proc capture = &fb_capture;
 
 	int arg, dummy;
-	while(-1 != (arg = getopt_long(argc, argv, "bfhDd:mo:PpqVv", options, &dummy)))
+	while(-1 != (arg = getopt_long(argc, argv, "bfhDd:m:PpqsVv", options, &dummy)))
 		switch(arg)
 		{
 			case 'b': benchmark = 1; break;
@@ -46,22 +57,24 @@ int main(int argc, char *argv[])
 			case 'm': do_mmap = 1; break;
 			case 'P': outtype = 1; break;
 			case 'p': outtype = 0; break;
-			case 'o': output = optarg; break;
 			case 'q': verbosity = 0; break;
+			case 's': sequence = 1; break;
 			case 'V': default_device = "/dev/tty0"; init = &vcsa_init; cleanup = &vcsa_cleanup; capture = &vcsa_capture; break;
 			case 'v': verbosity = 2; break;
 		}
+	if(optind < argc)
+		output = argv[optind++];
 	if(optind < argc || help)
 	{
 		fprintf(stderr, "Usage:\n");
-		fprintf(stderr, "    vtshot (-o <file> | -b) [-d <device>] [-bfDhmPpqVv]\n");
+		fprintf(stderr, "    vtshot (<file> | -b) [-d <device>] [-bfDhmPpqVv]\n");
 		fprintf(stderr, "\n");
-		fprintf(stderr, "  -o | --output <file>    Set the output file.\n");
 		fprintf(stderr, "  -d | --device <device>  Set the input device (default: /dev/fb0 or /dev/tty0).\n");
 		fprintf(stderr, "  -b | --benchmark        Do not capture the image, provide timing information instead.\n");
 		fprintf(stderr, "  -m | --mmap             Use memory mapping (slower on some machines, faster on others).\n");
 		fprintf(stderr, "  -p | --png              Set the output format to PNG (default).\n");
 		fprintf(stderr, "  -P | --ppm              Set the output format to PPM.\n");
+		fprintf(stderr, "  -s | --seqience         Record a sequence of images.\n");
 		fprintf(stderr, "  -f | --fb               Capture input from a framebuffer device.\n");
 		fprintf(stderr, "  -V | --vcsa             Capture input from a VCSA device.\n");
 		fprintf(stderr, "  -q | --quiet            Suppress error messages.\n");
@@ -71,7 +84,7 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 	if(!output && !benchmark)
-		die("No output filename specified. The -o/--output option is required. See --help for more info.\n");
+		die("No output filename specified. See --help for more info.\n");
 	if(!device)
 		device = default_device;
 	say("Done parsing options\n");
@@ -79,8 +92,7 @@ int main(int argc, char *argv[])
 	buffer buf = calloc(desc.width * desc.height * 3, 1);
 	if(benchmark)
 	{
-		struct timespec start;
-		struct timespec end;
+		struct timespec start, end;
 		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
 		capture(&desc, buf);
 		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end);
@@ -94,6 +106,51 @@ int main(int argc, char *argv[])
 		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &end);
 		double total = (double)(end.tv_sec - start.tv_sec) + (double)((end.tv_nsec - start.tv_nsec) % 1000000000) / 1.0e9;
 		yell("%d screenshots took %.3lf seconds (average %.3lf seconds, %.3lf FPS).\n", takes, total, total / takes, takes / total);
+	}
+	else if(sequence)
+	{
+		void **head = calloc(2, sizeof(void *));
+		void **tail = head;
+		signal(SIGINT, &handler);
+		while(!terminated)
+		{
+			struct timespec start, end;
+			clock_gettime(CLOCK_MONOTONIC, &start);
+			capture(&desc, buf);
+			tail[1] = rle_allocate(desc.width * desc.height, buf);
+			tail = tail[0] = calloc(2, sizeof(void *));
+			clock_gettime(CLOCK_MONOTONIC, &end);
+			uint64_t spent = (end.tv_nsec - start.tv_nsec) % 1000000000 + 1000000000 * (end.tv_sec - start.tv_sec);
+			int64_t remaining = 1000000000 / 24 - spent;
+			if(remaining > 0)
+			{
+				struct timespec sleep;
+				sleep.tv_nsec = remaining;
+				sleep.tv_sec = 0;
+				nanosleep(&sleep, &sleep);
+			}
+			else
+				yell("Underrun.\n");
+		}
+		say("Starting encoding.\n");
+		int frame = 0;
+		char filename[strlen(output) + 8];
+		while(head[0])
+		{
+			sprintf(filename, "%s.%06d", output, frame);
+			rle_free((rle)head[1], desc.width * desc.height, buf);
+			switch(outtype)
+			{
+				case 0: write_png(filename, desc.width, desc.height, buf); break;
+				case 1: write_ppm(filename, desc.width, desc.height, buf); break;
+			}
+			frame++;
+			void **next = head[0];
+			free(head);
+			head = next;
+		}
+		free(head);
+		say("Encoded %d frames.\n", frame);
 	}
 	else
 	{
