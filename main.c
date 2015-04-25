@@ -132,6 +132,7 @@ int main(int argc, char *argv[])
 			else
 				yell("Underrun.\n");
 		}
+		cleanup(&desc);
 		say("Starting encoding.\n");
 		int frame = 0;
 		char filename[strlen(output) + 8];
@@ -160,9 +161,9 @@ int main(int argc, char *argv[])
 			case 0: write_png(output, desc.width, desc.height, buf); break;
 			case 1: write_ppm(output, desc.width, desc.height, buf); break;
 		}
+		cleanup(&desc);
 	}
 	free(buf);
-	cleanup(&desc);
 	say("Exiting with a success status code\n");
 	return EXIT_SUCCESS;
 }
