@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
 	write_proc_sequence write_sequence = &write_png_sequence;
 
 	int arg, dummy;
-	while(-1 != (arg = getopt_long(argc, argv, "bDdFfgh:m:PpqsVv", options, &dummy)))
+	while(-1 != (arg = getopt_long(argc, argv, "bDd:F:fghmPpqsVv", options, &dummy)))
 		switch(arg)
 		{
 			case 'b': benchmark = 1; break;
