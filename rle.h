@@ -2,6 +2,7 @@
 #define RLE_H
 
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "reader_generic.h"
 

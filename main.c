@@ -4,20 +4,23 @@
 #include <getopt.h>
 #include <signal.h>
 
+#include "fb.h"
+#include "gif.h"
 #include "log.h"
 #include "png.h"
 #include "ppm.h"
 #include "reader_generic.h"
-#include "fb.h"
-#include "vcsa.h"
 #include "rle.h"
+#include "vcsa.h"
 
 struct option options[] = {
 	{"benchmark", no_argument, 0, 'b'},
-	{"fb", no_argument, 0, 'f'},
-	{"help", no_argument, 0, 'h'},
 	{"debug", no_argument, 0, 'D'},
 	{"device", required_argument, 0, 'd'},
+	{"fps", required_argument, 0, 'F'},
+	{"fb", no_argument, 0, 'f'},
+	{"gif", no_argument, 0, 'g'},
+	{"help", no_argument, 0, 'h'},
 	{"mmap", no_argument, 0, 'm'},
 	{"ppm", no_argument, 0, 'P'},
 	{"png", no_argument, 0, 'p'},
@@ -36,6 +39,8 @@ static void handler(int r)
 	terminated = 1;
 }
 
+double fps = 24.0;
+
 int main(int argc, char *argv[])
 {
 	char const *device = NULL, *output = NULL;
@@ -48,14 +53,16 @@ int main(int argc, char *argv[])
 	write_proc_sequence write_sequence = &write_png_sequence;
 
 	int arg, dummy;
-	while(-1 != (arg = getopt_long(argc, argv, "bfhDd:m:PpqsVv", options, &dummy)))
+	while(-1 != (arg = getopt_long(argc, argv, "bDdFfgh:m:PpqsVv", options, &dummy)))
 		switch(arg)
 		{
 			case 'b': benchmark = 1; break;
-			case 'f': default_device = "/dev/fb0"; init = &fb_init; cleanup = &fb_cleanup; capture = &fb_capture; break;
-			case 'h': help = 1; break;
 			case 'D': verbosity = 3; break;
 			case 'd': device = optarg; break;
+			case 'F': if(!sscanf(optarg, "%lf", &fps)) die("Not a number: '%s'\n", optarg); break;
+			case 'f': default_device = "/dev/fb0"; init = &fb_init; cleanup = &fb_cleanup; capture = &fb_capture; break;
+			case 'g': write = &write_gif; write_sequence = &write_gif_sequence; break;
+			case 'h': help = 1; break;
 			case 'm': do_mmap = 1; break;
 			case 'P': write = &write_ppm; write_sequence = &write_ppm_sequence; break;
 			case 'p': write = &write_png; write_sequence = &write_png_sequence; break;
@@ -69,14 +76,16 @@ int main(int argc, char *argv[])
 	if(optind < argc || help)
 	{
 		fprintf(stderr, "Usage:\n");
-		fprintf(stderr, "    vtshot (<file> | -b) [-d <device>] [-bfDhmPpqVv]\n");
+		fprintf(stderr, "    vtshot (<file> | -b) [-d <device>] [-bDdFfghmPpqVv]\n");
 		fprintf(stderr, "\n");
 		fprintf(stderr, "  -d | --device <device>  Set the input device (default: /dev/fb0 or /dev/tty0).\n");
 		fprintf(stderr, "  -b | --benchmark        Do not capture the image, provide timing information instead.\n");
 		fprintf(stderr, "  -m | --mmap             Use memory mapping (slower on some machines, faster on others).\n");
 		fprintf(stderr, "  -p | --png              Set the output format to PNG (default).\n");
 		fprintf(stderr, "  -P | --ppm              Set the output format to PPM.\n");
+		fprintf(stderr, "  -g | --gif              Set the output format to GIF.\n");
 		fprintf(stderr, "  -s | --sequence         Record a sequence of images.\n");
+		fprintf(stderr, "  -F | --fps <number>     Set the animation FPS (default: 24).\n");
 		fprintf(stderr, "  -f | --fb               Capture input from a framebuffer device.\n");
 		fprintf(stderr, "  -V | --vcsa             Capture input from a VCSA device.\n");
 		fprintf(stderr, "  -q | --quiet            Suppress error messages.\n");
@@ -123,7 +132,7 @@ int main(int argc, char *argv[])
 			tail = tail->next = calloc(1, sizeof(sequence));
 			clock_gettime(CLOCK_MONOTONIC, &end);
 			uint64_t spent = (end.tv_nsec - start.tv_nsec) % 1000000000 + 1000000000 * (end.tv_sec - start.tv_sec);
-			int64_t remaining = 1000000000 / 24 - spent;
+			int64_t remaining = (uint64_t)(1000000000 / fps) - spent;
 			if(remaining > 0)
 			{
 				struct timespec sleep;

@@ -3,8 +3,8 @@
 #include <stdlib.h>
 
 #include "log.h"
-#include "rle.h"
 #include "reader_generic.h"
+#include "rle.h"
 #include "writer_generic.h"
 
 void write_file_sequence(char const *basename, int width, int height, sequence *head, write_proc write)
