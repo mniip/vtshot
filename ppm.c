@@ -12,13 +12,13 @@
 
 static void write_all(int file_desc, void *data, size_t size)
 {
-	size_t orig_size = size;
 	while(size > 0)
 	{
 		int ret;
 		if(0 > (ret = write(file_desc, data, size)))
 			die("write_ppm: Error while writing PPM: %s\n", strerror(errno));
 		size -= ret;
+		data = (uint8_t *)data + ret;
 	}
 }
 

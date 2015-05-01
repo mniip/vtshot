@@ -17,6 +17,7 @@ static void write_all(int file_desc, void *data, size_t size)
 		if(0 > (ret = write(file_desc, data, size)))
 			die("write_ppm: Error while writing PNG: %s\n", strerror(errno));
 		size -= ret;
+		data = (uint8_t *)data + ret;
 	}
 }
 

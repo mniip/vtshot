@@ -81,7 +81,7 @@ void write_gif_sequence(char const *filename, int width, int height, sequence *h
 		rle_free(head->rle, width * height, buf);
 		int x_min = width, x_max = -1, y_min = height, y_max = -1;
 		int x, y;
-		size_t i, j;
+		size_t i;
 		i = 0;
 		for(y = 0; y < height; y++)
 			for(x = 0; x < width; x++, i++)

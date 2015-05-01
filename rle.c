@@ -27,7 +27,7 @@ rle rle_allocate(size_t size, buffer buf)
 		else
 			rle[i++] = base | run << 24;
 	}
-	whisper("rle_allocate: Shrunk %ld bytes to %ld.\n", size * 3, i * sizeof(uint32_t));
+	whisper("rle_allocate: Shrunk %zd bytes to %zd.\n", size * 3, i * sizeof(uint32_t));
 	return realloc(rle, i * sizeof(uint32_t));
 }
 

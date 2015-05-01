@@ -26,7 +26,7 @@ descriptor fb_init(char const *device)
 	if(0 > ioctl(file_desc, FBIOGET_FSCREENINFO, &fixed_info))
 		die("fb_init: Could not get fixed screen info: %s\n", strerror(errno));
 	say("fb_init: Got fixed screen info: framebuffer size = 0x%x, line length = 0x%x\n", fixed_info.smem_len, fixed_info.line_length);
-	void *map;
+	void *map = NULL;
 	if(do_mmap)
 	{
 		if((void *)-1 == (map = mmap(NULL, fixed_info.smem_len, PROT_READ, MAP_PRIVATE, file_desc, 0)))
@@ -70,7 +70,7 @@ static void read_all(int file_desc, void *buf, size_t size)
 		if(!ret)
 			say("fb_capture: Read ended early at offset 0x%lx\n", lseek(file_desc, 0, SEEK_CUR));
 		size -= ret;
-		buf += ret;
+		buf = (uint8_t *)buf + ret;
 	}
 }
 
@@ -87,8 +87,8 @@ void fb_capture(descriptor const *desc, buffer buf)
 	int height = desc->height;
 	if(width != screen_info.xres || height != screen_info.yres)
 		yell("fb_capture: Device resolution changed\n");
-	uint8_t *map;
-	uint8_t *data;
+	uint8_t *map = NULL;
+	uint8_t *data = NULL;
 	if(do_mmap)
 		map = ((fb_userdata *)desc->userdata)->map;
 	else

@@ -26,7 +26,7 @@ static void read_all(int file_desc, void *buf, size_t size)
 		if(!ret)
 			say("vcsa_capture: Read ended early at offset 0x%lx\n", lseek(file_desc, 0, SEEK_CUR));
 		size -= ret;
-		buf += ret;
+		buf = (uint8_t *)buf + ret;
 	}
 }
 
@@ -40,13 +40,13 @@ descriptor vcsa_init(char const *device)
 	struct stat tty;
 	if(0 > fstat(file_desc, &tty))
 		die("vcsa_init: Could not stat the TTY device: %s\n", strerror(errno));
-	say("vcsa_init: Device id = 0x%04lx\n", tty.st_rdev);
+	say("vcsa_init: Device id = 0x%04x\n", (int)tty.st_rdev);
 	if((tty.st_rdev & 0xFF00) != 0x0400)
-		die("vcsa_init: '%s' is not a TTY device (Expected 0x04xx, got 0x%04lx)\n", device, tty.st_rdev); 
+		die("vcsa_init: '%s' is not a TTY device (Expected 0x04xx, got 0x%04x)\n", device, (int)tty.st_rdev); 
 
 	char vcsa_name[13] = "/dev/vcsa"; // /dev/vcsa + up to 3 digits + nul
 	if(tty.st_rdev & 0xFF)
-		sprintf(vcsa_name, "/dev/vcsa%ld", tty.st_rdev & 0xFF);
+		sprintf(vcsa_name, "/dev/vcsa%d", (int)tty.st_rdev & 0xFF);
 
 	int vcsa_desc = open(vcsa_name, O_RDONLY);
 	if(vcsa_desc < 0)
@@ -144,7 +144,7 @@ void vcsa_capture(descriptor const *desc, buffer buf)
 			if(ch & mask)
 				symbol |= 0x100;
 			if(lower)
-				ch = ch & lower | ch >> 1 & ~lower;
+				ch = (ch & lower) | (ch >> 1 & ~lower);
 			int sym_pixel = op.data[char_distance * symbol + row_distance * dy + (dx >> 3)] & (0x80 >> (dx & 0x7));
 			int color = sym_pixel || (header.cursor_y == chary && header.cursor_x == charx && dy >= op.height - 2) ? (ch >> 8) & 0xF : ch >> 12;
 			*(buf++) = colors_red[color];

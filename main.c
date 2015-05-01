@@ -2,6 +2,7 @@
 #include <time.h>
 #include <string.h>
 #include <getopt.h>
+
 #include <signal.h>
 
 #include "fb.h"
@@ -44,7 +45,7 @@ double fps = 24.0;
 int main(int argc, char *argv[])
 {
 	char const *device = NULL, *output = NULL;
-	int help = 0, benchmark = 0, outtype = 0, seq = 0;
+	int help = 0, benchmark = 0, seq = 0;
 	char const *default_device = "/dev/fb0";
 	init_proc init = &fb_init;
 	cleanup_proc cleanup = &fb_cleanup;
