@@ -2,8 +2,11 @@
 #include <time.h>
 #include <string.h>
 #include <getopt.h>
+#include <errno.h>
+#include <unistd.h>
 
 #include <signal.h>
+#include <sys/wait.h>
 
 #include "fb.h"
 #include "gif.h"
@@ -26,6 +29,7 @@ struct option options[] = {
 	{"ppm", no_argument, 0, 'P'},
 	{"png", no_argument, 0, 'p'},
 	{"quiet", no_argument, 0, 'q'},
+	{"shell", no_argument, 0, 'S'},
 	{"sequence", no_argument, 0, 's'},
 	{"vcsa", no_argument, 0, 'V'},
 	{"verbose", no_argument, 0, 'v'},
@@ -54,7 +58,7 @@ int main(int argc, char *argv[])
 	write_proc_sequence write_sequence = &write_png_sequence;
 
 	int arg, dummy;
-	while(-1 != (arg = getopt_long(argc, argv, "bDd:F:fghmPpqsVv", options, &dummy)))
+	while(-1 != (arg = getopt_long(argc, argv, "bDd:F:fghmPpqSsVv", options, &dummy)))
 		switch(arg)
 		{
 			case 'b': benchmark = 1; break;
@@ -68,6 +72,7 @@ int main(int argc, char *argv[])
 			case 'P': write = &write_ppm; write_sequence = &write_ppm_sequence; break;
 			case 'p': write = &write_png; write_sequence = &write_png_sequence; break;
 			case 'q': verbosity = 0; break;
+			case 'S': seq = 2; break;
 			case 's': seq = 1; break;
 			case 'V': default_device = "/dev/tty0"; init = &vcsa_init; cleanup = &vcsa_cleanup; capture = &vcsa_capture; break;
 			case 'v': verbosity = 2; break;
@@ -89,7 +94,8 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "  -P | --ppm              Set the output format to PPM.\n");
 		fprintf(stderr, "  -g | --gif              Set the output format to GIF.\n");
 		fprintf(stderr, "\n");
-		fprintf(stderr, "  -s | --sequence         Record an animation images.\n");
+		fprintf(stderr, "  -s | --sequence         Record an animation, terminated by SIGINT (^C).\n");
+		fprintf(stderr, "  -S | --shell            Launch $SHELL and record an animation, until the shell exits.\n");
 		fprintf(stderr, "  -F | --fps <number>     Set the animation FPS (default: 24.0).\n");
 		fprintf(stderr, "\n");
 		fprintf(stderr, "  -q | --quiet            Suppress error messages.\n");
@@ -127,7 +133,32 @@ int main(int argc, char *argv[])
 	{
 		sequence *head = calloc(1, sizeof(sequence));
 		sequence *tail = head;
-		signal(SIGINT, &handler);
+		if(seq == 1)
+			signal(SIGINT, &handler);
+		int pid = 0;
+		if(seq == 2)
+		{
+			say("Clearing screen\n");
+			fflush(stderr);
+			fprintf(stdout, "\033[2J\033[H");
+			fflush(stdout);
+			int p = fork();
+			if(p < 0)
+				die("Fork failed: %s\n", strerror(errno));
+			if(p)
+			{
+				pid = p;
+				say("Forked to pid %d\n", pid);
+			}
+			else
+			{
+				cleanup(&desc);
+				char const *sh = getenv("SHELL");
+				say("Launching shell '%s'\n", sh);
+				if(0 > execl(sh, sh, NULL))
+					die("Exec of '%s' failed: %s\n", sh, strerror(errno));
+			}
+		}
 		while(!terminated)
 		{
 			struct timespec start, end;
@@ -146,10 +177,21 @@ int main(int argc, char *argv[])
 				nanosleep(&sleep, &sleep);
 			}
 			else
-				say("Underrun.\n");
+				say("Underrun\n");
+			if(seq == 2)
+			{
+				int ret = waitpid(pid, NULL, WNOHANG);
+				if(ret < 0)
+					die("Waitpid for pid %d failed: %s\n", pid, strerror(errno));
+				if(ret == pid)
+				{
+					say("Child shell exited\n");
+					terminated = 1;
+				}
+			}
 		}
 		cleanup(&desc);
-		say("Starting encoding.\n");
+		say("Starting encoding\n");
 		write_sequence(output, desc.width, desc.height, head);
 	}
 	else

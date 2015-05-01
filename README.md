@@ -1,6 +1,8 @@
 #VtShot
 
-Linux console recording tool. Input can be grabbed from a framebuffer or a VCSA device. Output can be in PNG, PPM or GIF format. Can also produce animations: animated GIFs and sequences of PPM or PNG files.
+VtShow is a linux console recording tool. Input can be grabbed from a framebuffer or a VCSA device. Output can be in PNG, PPM or GIF format. Can also produce animations: animated GIFs and sequences of PPM or PNG files.
+
+VtShot can record an animation from a screen until terminated by SIGINT (^C), or it can launch a shell, start recording, and finish recording when the shell exits.
 
 VtShot does not require root privileges. Usually you only need to be in the `video` group to access the framebuffer, and in the `tty` group to access the VCSA. For more info see `stat` of the respective device nodes in `/dev/`.
 
@@ -19,7 +21,8 @@ Usage:
   -P | --ppm              Set the output format to PPM.
   -g | --gif              Set the output format to GIF.
 
-  -s | --sequence         Record an animation images.
+  -s | --sequence         Record an animation, terminated by SIGINT (^C).
+  -S | --shell            Launch $SHELL and record an animation, until the shell exits.
   -F | --fps <number>     Set the animation FPS (default: 24.0).
 
   -q | --quiet            Suppress error messages.
