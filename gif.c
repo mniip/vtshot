@@ -8,12 +8,22 @@
 #include "rle.h"
 #include "writer_generic.h"
 
+#if GIFLIB_MAJOR >= 5
+#define MakeMapObject GifMakeMapObject
+#define FreeMapObject GifFreeMapObject
+#define QuantizeBuffer GifQuantizeBuffer
+#define EGifOpenFileName(name, test) EGifOpenFileName(name, test, NULL)
+#if GIFLIB_MINOR >= 1
+#define EGifCloseFile(gif) EGifCloseFile(gif, NULL)
+#endif
+#endif
+
 extern double fps;
 
 void write_gif(char const *filename, int width, int height, buffer buf)
 {
 	say("write_gif: Writing %dx%d GIF to '%s'\n", width, height, filename);
-	GifFileType *gif = EGifOpenFileName(filename, FALSE);
+	GifFileType *gif = EGifOpenFileName(filename, 0);
 	if(!gif)
 		die("write_gif: Unable to open GIF file '%s'\n", filename);
 	int palette_size = 256;
@@ -36,7 +46,7 @@ void write_gif(char const *filename, int width, int height, buffer buf)
 	FreeMapObject(global_palette);
 	say("write_gif: Wrote the header\n");
 
-	if(GIF_ERROR == EGifPutImageDesc(gif, 0, 0, width, height, FALSE, NULL))
+	if(GIF_ERROR == EGifPutImageDesc(gif, 0, 0, width, height, 0, NULL))
 		die("write_gif: Unable to write the local image descriptor\n");
 	if(GIF_ERROR == EGifPutLine(gif, frame, width * height))
 		die("write_gif: Unable to dump the buffer\n");
@@ -52,7 +62,7 @@ void write_gif(char const *filename, int width, int height, buffer buf)
 void write_gif_sequence(char const *filename, int width, int height, sequence *head)
 {
 	say("write_gif_sequence: Writing %dx%d animated GIF to '%s'\n", width, height, filename);
-	GifFileType *gif = EGifOpenFileName(filename, FALSE);
+	GifFileType *gif = EGifOpenFileName(filename, 0);
 	if(!gif)
 		die("write_gif_sequence: Unable to open GIF file '%s'\n", filename);
 	ColorMapObject *global_palette = MakeMapObject(2, NULL);
@@ -64,11 +74,22 @@ void write_gif_sequence(char const *filename, int width, int height, sequence *h
 	say("write_gif_sequence: Wrote the header\n");
 
 	char nsle[] = "NETSCAPE2.0";
+	char animation[3] = {1, 0, 0};
+#if GIFLIB_MAJOR >= 5
+	if(GIF_ERROR == EGifPutExtensionLeader(gif, APPLICATION_EXT_FUNC_CODE))
+		die("write_gif_sequence: Failed to start the NSLE extension\n");
+	if(GIF_ERROR == EGifPutExtensionBlock(gif, strlen(nsle), nsle))
+		die("write_gif_sequence: Failed to add the NSLE extension\n");
+	if(GIF_ERROR == EGifPutExtensionBlock(gif, sizeof(animation), animation))
+		die("write_gif_sequence: Failed to add the animation extension\n");
+	if(GIF_ERROR == EGifPutExtensionTrailer(gif))
+		die("write_gif_sequence: Failed to finish the NSLE extension\n");
+#else
 	if(GIF_ERROR == EGifPutExtensionFirst(gif, APPLICATION_EXT_FUNC_CODE, strlen(nsle), nsle))
 		die("write_gif_sequence: Failed to add the NSLE extension\n");
-	char animation[3] = {1, 0, 0};
 	if(GIF_ERROR == EGifPutExtensionLast(gif, APPLICATION_EXT_FUNC_CODE, sizeof(animation), animation))
 		die("write_gif_sequence: Failed to add the animation extension\n");
+#endif
 	say("write_gif_sequence: Wrote the animation block\n");
 
 	int frames = 0;
@@ -143,7 +164,7 @@ void write_gif_sequence(char const *filename, int width, int height, sequence *h
 				if(trans[y * width + x])
 					frame[i] = palette_size;
 
-		if(GIF_ERROR == EGifPutImageDesc(gif, x_min, y_min, x_size, y_size, FALSE, local_palette))
+		if(GIF_ERROR == EGifPutImageDesc(gif, x_min, y_min, x_size, y_size, 0, local_palette))
 			die("write_gif_sequence: Unable to write the local image descriptor at frame %d\n", frames);
 		FreeMapObject(local_palette);
 		if(GIF_ERROR == EGifPutLine(gif, frame, x_size * y_size))
