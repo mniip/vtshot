@@ -12,11 +12,46 @@ extern double fps;
 
 void write_gif(char const *filename, int width, int height, buffer buf)
 {
-	die("write_gif: Not yet implemented\n");
+	say("write_gif: Writing %dx%d GIF to '%s'\n", width, height, filename);
+	GifFileType *gif = EGifOpenFileName(filename, FALSE);
+	if(!gif)
+		die("write_gif: Unable to open GIF file '%s'\n", filename);
+	int palette_size = 256;
+	ColorMapObject *global_palette = MakeMapObject(palette_size, NULL);
+	if(!global_palette)
+		die("write_gif: Unable to create the global palette\n");
+	uint8_t *r = calloc(width * height, 1), *g = calloc(width * height, 1), *b = calloc(width * height, 1);
+	uint8_t *frame = calloc(width * height, 1);
+	size_t i, j;
+	for(i = 0, j = 0; i < width * height; i++)
+	{
+		r[i] = buf[j++];
+		g[i] = buf[j++];
+		b[i] = buf[j++];
+	}
+	if(GIF_ERROR == QuantizeBuffer(width, height, &palette_size, r, g, b, frame, global_palette->Colors))
+		die("write_gif: Unable to quantize\n");
+	if(GIF_ERROR == EGifPutScreenDesc(gif, width, height, 8, 0, global_palette))
+		die("write_gif: Unable to write GIF descriptor\n");
+	FreeMapObject(global_palette);
+	say("write_gif: Wrote the header\n");
+
+	if(GIF_ERROR == EGifPutImageDesc(gif, 0, 0, width, height, FALSE, NULL))
+		die("write_gif: Unable to write the local image descriptor\n");
+	if(GIF_ERROR == EGifPutLine(gif, frame, width * height))
+		die("write_gif: Unable to dump the buffer\n");
+	free(r);
+	free(g);
+	free(b);
+	free(frame);
+	if(GIF_ERROR == EGifCloseFile(gif))
+		die("write_gif_sequence: Unable to close the GIF file\n");
+	say("write_gif: Done writing\n");
 }
 
 void write_gif_sequence(char const *filename, int width, int height, sequence *head)
 {
+	say("write_gif_sequence: Writing %dx%d animated GIF to '%s'\n", width, height, filename);
 	GifFileType *gif = EGifOpenFileName(filename, FALSE);
 	if(!gif)
 		die("write_gif_sequence: Unable to open GIF file '%s'\n", filename);
@@ -80,5 +115,5 @@ void write_gif_sequence(char const *filename, int width, int height, sequence *h
 	free(frame);
 	if(GIF_ERROR == EGifCloseFile(gif))
 		die("write_gif_sequence: Unable to close the GIF file\n");
-	say("wrige_gif_sequence: Wrote %d frames\n", frames);
+	say("write_gif_sequence: Wrote %d frames to '%s'\n", frames, filename);
 }
