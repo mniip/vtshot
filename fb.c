@@ -54,7 +54,8 @@ descriptor fb_init(char const *device)
 void fb_cleanup(descriptor const *desc)
 {
 	say("fb_cleanup: Cleaning up the framebuffer device\n");
-	munmap(((fb_userdata *)desc->userdata)->map, ((fb_userdata *)desc->userdata)->map_length);
+	if(do_mmap)
+		munmap(((fb_userdata *)desc->userdata)->map, ((fb_userdata *)desc->userdata)->map_length);
 	close(((fb_userdata *)desc->userdata)->file_desc);
 	free(desc->userdata);
 	say("fb_cleanup: Done cleaning up\n");
