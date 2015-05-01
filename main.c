@@ -77,23 +77,27 @@ int main(int argc, char *argv[])
 	if(optind < argc || help)
 	{
 		fprintf(stderr, "Usage:\n");
-		fprintf(stderr, "    vtshot (<file> | -b) [-d <device>] [-bDdFfghmPpqVv]\n");
+		fprintf(stderr, "    vtshot (<file> | -b) [-d <device>] [-f <fps>] [-bDdFghmPpqVv]\n");
 		fprintf(stderr, "\n");
-		fprintf(stderr, "  -d | --device <device>  Set the input device (default: /dev/fb0 or /dev/tty0).\n");
-		fprintf(stderr, "  -b | --benchmark        Do not capture the image, provide timing information instead.\n");
+		fprintf(stderr, "  -d | --device <file>    Set the input device (default: /dev/fb0 or /dev/tty0).\n");
+		fprintf(stderr, "  -f | --fb               Capture input from a framebuffer device (default).\n");
+		fprintf(stderr, "  -V | --vcsa             Capture input from a VCSA device.\n");
 		fprintf(stderr, "  -m | --mmap             Use memory mapping (slower on some machines, faster on others).\n");
+		fprintf(stderr, "  -b | --benchmark        Do not capture the image, provide timing information instead.\n");
+		fprintf(stderr, "\n");
 		fprintf(stderr, "  -p | --png              Set the output format to PNG (default).\n");
 		fprintf(stderr, "  -P | --ppm              Set the output format to PPM.\n");
 		fprintf(stderr, "  -g | --gif              Set the output format to GIF.\n");
-		fprintf(stderr, "  -s | --sequence         Record a sequence of images.\n");
-		fprintf(stderr, "  -F | --fps <number>     Set the animation FPS (default: 24).\n");
-		fprintf(stderr, "  -f | --fb               Capture input from a framebuffer device.\n");
-		fprintf(stderr, "  -V | --vcsa             Capture input from a VCSA device.\n");
+		fprintf(stderr, "\n");
+		fprintf(stderr, "  -s | --sequence         Record an animation images.\n");
+		fprintf(stderr, "  -F | --fps <number>     Set the animation FPS (default: 24.0).\n");
+		fprintf(stderr, "\n");
 		fprintf(stderr, "  -q | --quiet            Suppress error messages.\n");
 		fprintf(stderr, "  -v | --verbose          Show more informational messages.\n");
 		fprintf(stderr, "  -D | --debug            Show debug information.\n");
 		fprintf(stderr, "  -h | --help             Show this help.\n");
 		return EXIT_FAILURE;
+
 	}
 	if(!output && !benchmark)
 		die("No output filename specified. See --help for more info.\n");
