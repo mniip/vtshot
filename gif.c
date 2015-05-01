@@ -72,16 +72,11 @@ void write_gif_sequence(char const *filename, int width, int height, sequence *h
 	say("write_gif_sequence: Wrote the animation block\n");
 
 	int frames = 0;
-	buffer buf = calloc(width * height, 3);
+	buffer buf = calloc(width * height, 3), buf_prev = calloc(width * height, 3);
 	uint8_t *r = calloc(width * height, 1), *g = calloc(width * height, 1), *b = calloc(width * height, 1);
 	uint8_t *frame = calloc(width * height, 1);
 	while(head->next)
 	{
-		int msec = 100 / fps;
-		char gce[4] = {0, msec & 0xFF, msec >> 8, 0};
-		if(GIF_ERROR == EGifPutExtension(gif, GRAPHICS_EXT_FUNC_CODE, sizeof(gce), gce))
-			die("write_gif_sequence: Failed to add the delay extension at frame %d\n", frames);
-
 		rle_free(head->rle, width * height, buf);
 		size_t i, j;
 		for(i = 0, j = 0; i < width * height; i++)
@@ -94,13 +89,35 @@ void write_gif_sequence(char const *filename, int width, int height, sequence *h
 		ColorMapObject *local_palette = MakeMapObject(palette_size, NULL);
 		if(!local_palette)
 			die("write_gif_sequence: Unable to create the local palette at frame %d\n", frames);
+		palette_size = 255;
 		if(GIF_ERROR == QuantizeBuffer(width, height, &palette_size, r, g, b, frame, local_palette->Colors))
 			die("write_gif_sequence: Unable to quantize frame %d\n", frames);
+		if(palette_size >= 256)
+			die("write_gif_sequence: Quantization didn't reserve a slot for transparency at frame %d\n", frames);
+
+		int msec = 100 / fps;
+		char gce[4] = {1, msec & 0xFF, msec >> 8, palette_size};
+		if(GIF_ERROR == EGifPutExtension(gif, GRAPHICS_EXT_FUNC_CODE, sizeof(gce), gce))
+			die("write_gif_sequence: Failed to add the GCE extension at frame %d\n", frames);
+
+		if(frames)
+			for(i = 0; i < width * height; i++)
+			{
+				uint32_t x = *(uint16_t *)(buf + i * 3) | *(uint8_t *)(buf + i * 3 + 2) << 16;
+				uint32_t y = *(uint16_t *)(buf_prev + i * 3) | *(uint8_t *)(buf_prev + i * 3 + 2) << 16;
+				if(x == y)
+					frame[i] = palette_size;
+			}
+
 		if(GIF_ERROR == EGifPutImageDesc(gif, 0, 0, width, height, FALSE, local_palette))
 			die("write_gif_sequence: Unable to write the local image descriptor at frame %d\n", frames);
 		FreeMapObject(local_palette);
 		if(GIF_ERROR == EGifPutLine(gif, frame, width * height))
 			die("write_gif_sequence: Unable to dump the buffer at frame %d\n", frames);
+
+		buffer t = buf;
+		buf = buf_prev;
+		buf_prev = t;
 
 		frames++;
 		sequence *next = head->next;
@@ -109,6 +126,7 @@ void write_gif_sequence(char const *filename, int width, int height, sequence *h
 	}
 	free(head);
 	free(buf);
+	free(buf_prev);
 	free(r);
 	free(g);
 	free(b);
