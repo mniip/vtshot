@@ -124,6 +124,15 @@ void vcsa_capture(descriptor const *desc, buffer buf)
 	lseek(vcsa_desc, 0, SEEK_SET);
 	read_all(vcsa_desc, &header, sizeof(struct vcsa_header));
 
+	if(header.lines != ((vcsa_userdata *)desc->userdata)->header.lines || header.columns != ((vcsa_userdata *)desc->userdata)->header.columns)
+	{
+		int excolumns = ((vcsa_userdata *)desc->userdata)->header.columns;
+		int exlines = ((vcsa_userdata *)desc->userdata)->header.lines;
+		say("vcsa_capture: TTY size changed: was %dx%d (%dx%d of %dx%d), now %dx%d (%dx%d of %dx%d)\n", width, height, excolumns, exlines, width / excolumns, height / exlines, header.columns * op.width, header.lines * op.height, header.columns, header.lines, op.width, op.height);
+		((vcsa_userdata *)desc->userdata)->header.columns = header.columns;
+		((vcsa_userdata *)desc->userdata)->header.lines = header.lines;
+	}
+
 	uint16_t lower = mask - 1;
 	size_t row_distance = (op.width + 7) / 8;
 	size_t char_distance = row_distance * 32;
@@ -137,6 +146,13 @@ void vcsa_capture(descriptor const *desc, buffer buf)
 		uint16_t *line = data + header.columns * chary;
 		for(x = 0; x < width; x++)
 		{
+			if(x >= header.columns * op.width || y >= header.lines * op.height)
+			{
+				*(buf++) = 0;
+				*(buf++) = 0;
+				*(buf++) = 0;
+				continue;
+			}
 			int charx = x / op.width;
 			int dx = x % op.width;
 			uint16_t ch = line[charx];
