@@ -29,9 +29,10 @@ void write_ppm(char const *filename, int width, int height, buffer buf)
 	if(file_desc < 0)
 		die("write_ppm: Could not open '%s' for writing: %s\n", filename, strerror(errno));
 	whisper("write_ppm: Opened the file\n");
-	char *header = calloc(20, 1); // 11 bytes of text, plus 2 numbers 9 each plus terminating null
+	char *header = calloc(30, 1); // 11 bytes of text, plus 2 numbers 9 each plus terminating null
 	sprintf(header, "P6\n#\n%d %d\n255\n", width, height);
 	write_all(file_desc, header, strlen(header));
+	free(header);
 	whisper("write_ppm: Wrote the header\n");
 	write_all(file_desc, buf, width * height * 3);
 	whisper("write_ppm: Wrote the buffer\n");
